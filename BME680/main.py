@@ -46,7 +46,7 @@ def connect():
     wlan.connect(ssid, password)
     while wlan.isconnected() == False:
         print('Waiting for connection...')
-        sleep(1)
+        utime.sleep(1)
     ip = wlan.ifconfig()[0]
     print(f'Connected on {ip}')
     
@@ -66,6 +66,9 @@ urlPres = 'http://iot.kpu.krosno.pl:8081/data/INZ/BME680Pres'
 
 i2c=I2C(1,sda=Pin(2), scl=Pin(3), freq=400000)    #initializing the I2C method
 bme = BME680_I2C(i2c=i2c)
+
+led = machine.Pin("LED", machine.Pin.OUT)
+led.on()
 
 sendAfter = 0
 
@@ -95,11 +98,9 @@ while True:
         print('Humidity:', humidity, ' %')
         print('Pressure:', pressure, ' hPa')
         print('Gas:', gas, ' KOhms')
-        print('Temperature HttpStatus:', requests.put(url, json={"observations": [{ "value": temperature}]}, headers=headers).status_code)
-        print('Humidity HttpStatus:', requests.put(url, json={"observations": [{ "value": humidity}]}, headers=headers).status_code)
-        print('Pressure HttpStatus:', requests.put(url, json={"observations": [{ "value": pressure}]}, headers=headers).status_code)
+        print('Temperature HttpStatus:', requests.put(urlTemp, json={"observations": [{ "value": temperature}]}, headers=headers).status_code)
+        print('Humidity HttpStatus:', requests.put(urlHumi, json={"observations": [{ "value": humidity}]}, headers=headers).status_code)
+        print('Pressure HttpStatus:', requests.put(urlPres, json={"observations": [{ "value": pressure}]}, headers=headers).status_code)
         
         sendAfter = 0 + timestamp
     
-    
-
