@@ -46,7 +46,7 @@ def connect():
     wlan.connect(ssid, password)
     while wlan.isconnected() == False:
         print('Waiting for connection...')
-        utime.sleep(1)
+        sleep(1)
     ip = wlan.ifconfig()[0]
     print(f'Connected on {ip}')
     
@@ -58,49 +58,58 @@ except KeyboardInterrupt:
 set_time()
     
 headers = {
-    'identity_key': 'c956c302086a042dd0426b4e62652273e05a6ce74d0b77f8b5602e0811025066'
+    'identity_key': '21ded40eae01a39bcd19407ffc25bba233495e827df02313d0fe0a9c69553822'
 }
-urlTemp = 'http://iot.kpu.krosno.pl:8081/data/INZ/BME680Temp'
+
+sprnigHeaders = {
+    'API-KEY': 'krosno'
+}
+
+urlTemp = 'http://iot.kpu.krosno.pl:8080/data/INZ/BME680Temp'
 urlHumi = 'http://iot.kpu.krosno.pl:8081/data/INZ/BME680Humi'
 urlPres = 'http://iot.kpu.krosno.pl:8081/data/INZ/BME680Pres'
+urlSpring = 'http://192.168.55.109:8080/api/add/many'
 
 i2c=I2C(1,sda=Pin(2), scl=Pin(3), freq=400000)    #initializing the I2C method
 bme = BME680_I2C(i2c=i2c)
 
-led = machine.Pin("LED", machine.Pin.OUT)
-led.on()
-
 sendAfter = 0
 
 while True:
-    if (utime.mktime(rtc.datetime()) > sendAfter):
-        if (rtc.datetime()[5] % 5 != 0):
-            continue
-        timestamp = utime.mktime(rtc.datetime())
-        temperature = str(round(bme.temperature, 2))
-        humidity = str(round(bme.humidity, 2))
-        pressure = str(round(bme.pressure, 2))
-        gas = str(round(bme.gas/1000, 2))
-        date = utime.localtime(timestamp)
-        formatted_date_time = "{:02d}/{:02d}/{:04d}T{:02d}:{:02d}:{:02d}".format(
-            date[2],  # day
-            date[1],  # month
-            date[0],  # year
-            date[4]+1,  # hour
-            date[5],  # minute
-            date[6]   # second
-        )
-    
+    if (rtc.datetime()[5] % 30 != 0):
+        continue
+    timestamp = utime.mktime(rtc.datetime())
+    temperature = str(round(bme.temperature, 2))
+    humidity = str(round(bme.humidity, 2))
+    pressure = str(round(bme.pressure, 2))
+    gas = str(round(bme.gas/1000, 2))
+    date = utime.localtime(timestamp)
+    formatted_date_time = "{:02d}/{:02d}/{:04d}T{:02d}:{:02d}:{:02d}".format(
+        date[2],  	# day
+        date[1],  	# month
+        date[0],  	# year
+        date[4]+1,  # hour
+        date[5],  	# minute
+        0   		# second
+    )
 
-        print('-------------------------')
-        print('Date:', formatted_date_time)
-        print('Temperature:', temperature, 'C')
-        print('Humidity:', humidity, ' %')
-        print('Pressure:', pressure, ' hPa')
-        print('Gas:', gas, ' KOhms')
-        print('Temperature HttpStatus:', requests.put(urlTemp, json={"observations": [{ "value": temperature}]}, headers=headers).status_code)
-        print('Humidity HttpStatus:', requests.put(urlHumi, json={"observations": [{ "value": humidity}]}, headers=headers).status_code)
-        print('Pressure HttpStatus:', requests.put(urlPres, json={"observations": [{ "value": pressure}]}, headers=headers).status_code)
-        
-        sendAfter = 0 + timestamp
-    
+    print('-------------------------')
+    print('Date:', formatted_date_time)
+    print('Temperature:', temperature, 'C')
+    print('Humidity:', humidity, ' %')
+    print('Pressure:', pressure, ' hPa')
+    print('Gas:', gas, ' KOhms')
+    try:
+        print('Temperature Sentilo HttpStatus:', requests.put(urlTemp, data={"observations": [{ "value": temperature}]}, headers=headers).status_code)
+        print('Humidity Sentilo HttpStatus:', requests.put(urlHumi, json={"observations": [{ "value": humidity, "timestamp": formatted_date_time}]}, headers=headers).status_code)
+        print('Pressure Sentilo HttpStatus:', requests.put(urlPres, json={"observations": [{ "value": pressure, "timestamp": formatted_date_time}]}, headers=headers).status_code)
+    except:
+        print("An exception occurred when sending data to Sentilo")
+    try:    
+        print('Spring HttpStatus:', requests.post(urlSpring, json={"readingsList": [
+        {"sensorType": "TEMPERATURE","sensorName": "BME680","reading": temperature,"timestamp": formatted_date_time,"outdoor": True},
+        {"sensorType": "PRESSURE","sensorName": "BME680","reading": humidity,"timestamp": formatted_date_time,"outdoor": True},
+        {"sensorType": "HUMIDITY","sensorName": "BME680","reading": pressure,"timestamp": formatted_date_time,"outdoor": True}
+        ]}, headers=sprnigHeaders).status_code)
+    except:
+        print("An exception occurred when sending data to SpringBoot")
